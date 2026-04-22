@@ -57,7 +57,7 @@ st.title("🛡️ Cloud Audit Engine")
 st.markdown("Public AI auditing tool powered by Groq and Pinecone.")
 
 # Initialize Cloud AI Models
-llm = ChatGroq(model_name="llama3-8b-8192")
+llm = ChatGroq(model_name="llama-3.1-8b-instant")
 
 # Use our new bulletproof embedder
 embeddings = SafeHFEmbeddings(
