@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import time
 from io import BytesIO
 from docx import Document
 import tempfile
@@ -20,9 +21,9 @@ index_name = "audit-db"
 # --- 2. MAIN APPLICATION ---
 st.set_page_config(page_title="Cloud Audit AI", layout="centered")
 st.title("🛡️ Cloud Audit Engine")
-st.markdown("AI auditing tool by Sandeep")
+st.markdown("Public AI auditing tool powered by Groq and Pinecone.")
 
-# Initialize Cloud AI Models (Lightweight API versions)
+# Initialize Cloud AI Models
 llm = ChatGroq(model_name="llama3-8b-8192")
 
 embeddings = HuggingFaceInferenceAPIEmbeddings(
@@ -30,9 +31,7 @@ embeddings = HuggingFaceInferenceAPIEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# THIS IS THE LINE THAT WAS MISSING! It connects your app to Pinecone.
 vector_store = PineconeVectorStore(index_name=index_name, embedding=embeddings)
-
 
 # --- 3. SIDEBAR: DOCUMENT UPLOAD ---
 with st.sidebar:
@@ -41,12 +40,13 @@ with st.sidebar:
     
     if st.button("Process & Upload to Cloud"):
         if uploaded_file is not None:
-            with st.spinner("Processing..."):
+            with st.spinner("Processing PDF..."):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     tmp.write(uploaded_file.getvalue())
                     tmp_path = tmp.name
                 
                 try:
+                    # Parse the PDF
                     loader = PyPDFLoader(tmp_path)
                     docs = loader.load()
                     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
@@ -55,9 +55,25 @@ with st.sidebar:
                     for chunk in chunks:
                         chunk.metadata["source"] = uploaded_file.name
                     
-                    # Now vector_store exists and this line will work!
-                    vector_store.add_documents(chunks)
-                    st.success(f"Uploaded {uploaded_file.name} to Pinecone!")
+                    # BATCH UPLOAD: Protects the free API from crashing
+                    batch_size = 10
+                    progress_text = st.empty()
+                    
+                    for i in range(0, len(chunks), batch_size):
+                        batch = chunks[i : i + batch_size]
+                        progress_text.text(f"Uploading batch {i//batch_size + 1}...")
+                        
+                        # Upload the small batch
+                        vector_store.add_documents(batch)
+                        
+                        # Pause for 1 second to respect free tier rate limits
+                        time.sleep(1) 
+                        
+                    progress_text.empty()
+                    st.success(f"Successfully vectorized and uploaded {uploaded_file.name} to Pinecone!")
+                    
+                except Exception as e:
+                    st.error(f"API Error during upload: {str(e)}. Check your HuggingFace Token.")
                 finally:
                     os.remove(tmp_path)
         else:
@@ -70,43 +86,27 @@ doc_target = st.text_input("Target Document Name (Exact PDF name uploaded)", pla
 if st.button("Generate Questionnaire"):
     if focus_area and doc_target:
         with st.spinner("Querying Cloud AI..."):
-            retriever = vector_store.as_retriever(
-                search_kwargs={"k": 4, "filter": {"source": doc_target}}
-            )
-            retrieved_docs = retriever.invoke(focus_area)
-            context = "\n\n".join([doc.page_content for doc in retrieved_docs])
-            
-            prompt = f"""
-You are a senior government audit officer.
-
-Using ONLY the document excerpts below, generate a structured audit questionnaire.
-
-Requirements:
-- Questions must be logical and non-repetitive
-- Include compliance, control, risk, and evidence aspects
-- Frame questions in professional audit language
-- Avoid generic questions
-
-Focus Area: {focus_area}
-
-Document: {doc_target}
-
-Context:
-{context}
-
-Output format:
-1. Question
-   - Objective:
-   - Audit Criteria:
-   - Expected Evidence:
-"""
-            
-            response = llm.invoke(prompt)
-            
-            st.session_state['last_result'] = response.content
-            st.session_state['last_focus'] = focus_area
-            st.markdown("### Generated Questionnaire")
-            st.write(response.content)
+            try:
+                retriever = vector_store.as_retriever(
+                    search_kwargs={"k": 4, "filter": {"source": doc_target}}
+                )
+                retrieved_docs = retriever.invoke(focus_area)
+                context = "\n\n".join([doc.page_content for doc in retrieved_docs])
+                
+                if not context:
+                    st.warning("No relevant text found. Did you type the exact PDF filename?")
+                else:
+                    prompt = f"""You are an expert auditor. Based ONLY on the excerpts below from {doc_target}, generate a 5-question audit checklist about: {focus_area}.
+                    Excerpts: {context}"""
+                    
+                    response = llm.invoke(prompt)
+                    
+                    st.session_state['last_result'] = response.content
+                    st.session_state['last_focus'] = focus_area
+                    st.markdown("### Generated Questionnaire")
+                    st.write(response.content)
+            except Exception as e:
+                st.error("Error generating audit. Ensure your API keys are correct.")
 
 # --- 5. EXPORT TO WORD ---
 if 'last_result' in st.session_state:
