@@ -1,0 +1,9 @@
+streamlit
+streamlit-authenticator
+langchain
+langchain-groq
+langchain-pinecone
+langchain-huggingface
+pypdf
+python-docx
+pinecone-client
