@@ -1,6 +1,7 @@
 streamlit
 streamlit-authenticator
 langchain
+langchain-community
 langchain-groq
 langchain-pinecone
 langchain-huggingface
