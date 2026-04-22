@@ -5,6 +5,7 @@ langchain-community
 langchain-groq
 langchain-pinecone
 langchain-huggingface
+sentence-transformers
 pypdf
 python-docx
 pinecone-client
