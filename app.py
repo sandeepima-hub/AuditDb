@@ -11,7 +11,6 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
 
 # --- 1. SECRETS & CONFIGURATION ---
-# Pulling API keys securely from Streamlit Advanced Settings
 os.environ["PINECONE_API_KEY"] = st.secrets["PINECONE_API_KEY"]
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
@@ -21,14 +20,20 @@ index_name = "audit-db"
 # --- 2. MAIN APPLICATION ---
 st.set_page_config(page_title="Cloud Audit AI", layout="centered")
 st.title("🛡️ Cloud Audit Engine")
-st.markdown("Public AI auditing tool powered by Groq and Pinecone.")
+st.markdown("AI auditing tool by Sandeep")
 
-# Initialize Cloud AI Models
+# Initialize Cloud AI Models (Lightweight API versions)
 llm = ChatGroq(model_name="llama3-8b-8192")
+
 embeddings = HuggingFaceInferenceAPIEmbeddings(
     api_key=os.environ["HUGGINGFACEHUB_API_TOKEN"], 
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
+
+# THIS IS THE LINE THAT WAS MISSING! It connects your app to Pinecone.
+vector_store = PineconeVectorStore(index_name=index_name, embedding=embeddings)
+
+
 # --- 3. SIDEBAR: DOCUMENT UPLOAD ---
 with st.sidebar:
     st.header("Document Repository")
@@ -50,6 +55,7 @@ with st.sidebar:
                     for chunk in chunks:
                         chunk.metadata["source"] = uploaded_file.name
                     
+                    # Now vector_store exists and this line will work!
                     vector_store.add_documents(chunks)
                     st.success(f"Uploaded {uploaded_file.name} to Pinecone!")
                 finally:
@@ -70,8 +76,30 @@ if st.button("Generate Questionnaire"):
             retrieved_docs = retriever.invoke(focus_area)
             context = "\n\n".join([doc.page_content for doc in retrieved_docs])
             
-            prompt = f"""You are an expert auditor. Based ONLY on the excerpts below from {doc_target}, generate a 5-question audit checklist about: {focus_area}.
-            Excerpts: {context}"""
+            prompt = f"""
+You are a senior government audit officer.
+
+Using ONLY the document excerpts below, generate a structured audit questionnaire.
+
+Requirements:
+- Questions must be logical and non-repetitive
+- Include compliance, control, risk, and evidence aspects
+- Frame questions in professional audit language
+- Avoid generic questions
+
+Focus Area: {focus_area}
+
+Document: {doc_target}
+
+Context:
+{context}
+
+Output format:
+1. Question
+   - Objective:
+   - Audit Criteria:
+   - Expected Evidence:
+""""""
             
             response = llm.invoke(prompt)
             
