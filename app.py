@@ -99,7 +99,7 @@ Output format:
    - Objective:
    - Audit Criteria:
    - Expected Evidence:
-""""""
+"""
             
             response = llm.invoke(prompt)
             
