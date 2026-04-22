@@ -26,7 +26,7 @@ index_name = "audit-db"
 class SafeHFEmbeddings(Embeddings):
     def __init__(self, api_key, model):
         # Updated to the correct Hugging Face API routing
-        self.api_url = f"https://api-inference.huggingface.co/models/{model}"
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{model}/pipeline/feature-extraction"
         self.headers = {"Authorization": f"Bearer {api_key}"}
 
     def embed_documents(self, texts):
