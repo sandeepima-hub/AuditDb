@@ -6,7 +6,7 @@ import tempfile
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
 
@@ -25,9 +25,10 @@ st.markdown("Public AI auditing tool powered by Groq and Pinecone.")
 
 # Initialize Cloud AI Models
 llm = ChatGroq(model_name="llama3-8b-8192")
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vector_store = PineconeVectorStore(index_name=index_name, embedding=embeddings)
-
+embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key=os.environ["HUGGINGFACEHUB_API_TOKEN"], 
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 # --- 3. SIDEBAR: DOCUMENT UPLOAD ---
 with st.sidebar:
     st.header("Document Repository")
