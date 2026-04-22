@@ -21,8 +21,6 @@ index_name = "audit-db"
 
 # --- 2. CUSTOM BULLETPROOF EMBEDDER ---
 # This forces the free API to wake up and catches blank errors
-# --- 2. CUSTOM BULLETPROOF EMBEDDER ---
-# This forces the free API to wake up and catches blank errors
 class SafeHFEmbeddings(Embeddings):
     def __init__(self, api_key, model):
         # Updated to the correct Hugging Face API routing
@@ -51,6 +49,7 @@ class SafeHFEmbeddings(Embeddings):
 
     def embed_query(self, text):
         return self.embed_documents([text])[0]
+
 # --- 3. MAIN APPLICATION ---
 st.set_page_config(page_title="Cloud Audit AI", layout="centered")
 st.title("🛡️ Cloud Audit Engine")
